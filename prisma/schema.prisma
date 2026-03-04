@@ -1,0 +1,243 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  OWNER
+  CLIENT
+  AGENT
+  ADMIN
+}
+
+enum PriceType {
+  DAILY
+  MONTHLY
+  YEARLY
+}
+
+enum PropertyType {
+  APARTMENT
+  HOUSE
+  STUDIO
+  VILLA
+}
+
+enum PropertyStatus {
+  PENDING_REVIEW
+  ACTIVE
+  REJECTED
+  RENTED
+}
+
+enum ImageVerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum PaymentMethod {
+  MOMO
+  MOOV
+  CARD
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+enum DocumentType {
+  IDENTITY
+  OWNERSHIP
+  TAX_RECEIPT
+}
+
+enum DocumentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id               String    @id @default(cuid())
+  email            String    @unique
+  phone            String?
+  password         String
+  name             String
+  role             UserRole  @default(CLIENT)
+  isVerified       Boolean   @default(false)
+  identityDocument String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  properties       Property[]
+  bookings         Booking[]       @relation("ClientBookings")
+  appointments     Appointment[]   @relation("ClientAppointments")
+  agentAppointments Appointment[]  @relation("AgentAppointments")
+  agentAvailability AgentAvailability[]
+  documents        Document[]
+  reviewedDocuments Document[]     @relation("ReviewedDocuments")
+  favorites        Favorite[]
+  reviews          Review[]
+}
+
+model Property {
+  id                String         @id @default(cuid())
+  title             String
+  description       String
+  address           String
+  city              String
+  price             Float
+  priceType         PriceType
+  bedrooms          Int
+  bathrooms         Int
+  area              Float?
+  propertyType      PropertyType
+  status            PropertyStatus @default(PENDING_REVIEW)
+  ownershipDocument String?
+  latitude          Float?
+  longitude         Float?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  ownerId           String
+  owner             User           @relation(fields: [ownerId], references: [id])
+  images            PropertyImage[]
+  appointments      Appointment[]
+  bookings          Booking[]
+  favorites         Favorite[]
+  reviews           Review[]
+}
+
+model PropertyImage {
+  id                 String                   @id @default(cuid())
+  url                String
+  isVerified         Boolean                  @default(false)
+  exifData           Json?
+  imageHash          String?
+  verificationStatus ImageVerificationStatus  @default(PENDING)
+  rejectionReason    String?
+  createdAt          DateTime                 @default(now())
+
+  propertyId         String
+  property           Property                 @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+}
+
+model Appointment {
+  id             String            @id @default(cuid())
+  requestedDate  DateTime
+  confirmedDate  DateTime?
+  status         AppointmentStatus @default(PENDING)
+  notes          String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  propertyId     String
+  property       Property          @relation(fields: [propertyId], references: [id])
+  clientId       String
+  client         User              @relation("ClientAppointments", fields: [clientId], references: [id])
+  agentId        String?
+  agent          User?             @relation("AgentAppointments", fields: [agentId], references: [id])
+}
+
+model AgentAvailability {
+  id        String   @id @default(cuid())
+  date      DateTime
+  startTime String
+  endTime   String
+  isBooked  Boolean  @default(false)
+
+  agentId   String
+  agent     User     @relation(fields: [agentId], references: [id])
+}
+
+model Payment {
+  id                   String        @id @default(cuid())
+  amount               Float
+  currency             String        @default("XOF")
+  method               PaymentMethod
+  transactionRef       String?
+  status               PaymentStatus @default(PENDING)
+  fedapayTransactionId String?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  bookingId            String        @unique
+  booking              Booking       @relation(fields: [bookingId], references: [id])
+}
+
+model Booking {
+  id          String        @id @default(cuid())
+  startDate   DateTime
+  endDate     DateTime
+  totalAmount Float
+  status      BookingStatus @default(PENDING)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  propertyId  String
+  property    Property      @relation(fields: [propertyId], references: [id])
+  clientId    String
+  client      User          @relation("ClientBookings", fields: [clientId], references: [id])
+  payment     Payment?
+}
+
+model Document {
+  id         String         @id @default(cuid())
+  type       DocumentType
+  url        String
+  status     DocumentStatus @default(PENDING)
+  reviewNote String?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  userId     String
+  user       User           @relation(fields: [userId], references: [id])
+  reviewedById String?
+  reviewedBy   User?        @relation("ReviewedDocuments", fields: [reviewedById], references: [id])
+}
+
+model Favorite {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id])
+
+  @@unique([userId, propertyId])
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id])
+
+  @@unique([userId, propertyId])
+}
