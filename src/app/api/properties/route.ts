@@ -107,6 +107,24 @@ export async function POST(request: Request) {
       )
     }
 
+    // Vérifier l'abonnement actif (sauf ADMIN)
+    if (userRole !== 'ADMIN') {
+      const activeSubscription = await prisma.subscription.findFirst({
+        where: {
+          userId,
+          status: 'ACTIVE',
+          endDate: { gte: new Date() },
+        },
+      })
+
+      if (!activeSubscription) {
+        return NextResponse.json(
+          { error: 'Abonnement requis. Souscrivez un abonnement (10 000 FCFA/mois) pour publier des annonces.' },
+          { status: 403 }
+        )
+      }
+    }
+
     const body = await request.json()
 
     const {

@@ -68,12 +68,19 @@ export async function POST(request: Request) {
 
     const paymentToken = await generatePaymentToken(transaction.id)
 
+    // Calcul de la commission (10%)
+    const COMMISSION_RATE = 0.10
+    const commission = Math.round(booking.totalAmount * COMMISSION_RATE)
+    const ownerAmount = booking.totalAmount - commission
+
     // Create or update payment record
     const payment = existingPayment
       ? await prisma.payment.update({
           where: { id: existingPayment.id },
           data: {
             method,
+            commission,
+            ownerAmount,
             transactionRef: transaction.reference,
             fedapayTransactionId: String(transaction.id),
             status: 'PENDING',
@@ -82,6 +89,8 @@ export async function POST(request: Request) {
       : await prisma.payment.create({
           data: {
             amount: booking.totalAmount,
+            commission,
+            ownerAmount,
             currency: 'XOF',
             method,
             transactionRef: transaction.reference,
