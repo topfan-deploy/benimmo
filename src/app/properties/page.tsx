@@ -1,8 +1,20 @@
 export const dynamic = 'force-dynamic'
 
+import type { Metadata } from 'next'
 import { Suspense } from 'react'
 import Link from 'next/link'
 import prisma from '@/lib/prisma'
+
+export const metadata: Metadata = {
+  title: 'Propriétés à louer au Bénin - Appartements, Maisons, Villas',
+  description:
+    'Parcourez les annonces immobilières vérifiées au Bénin. Appartements, maisons, studios et villas à louer à Cotonou, Porto-Novo, Parakou et plus.',
+  openGraph: {
+    title: 'Propriétés à louer au Bénin | BenImmo',
+    description:
+      'Trouvez votre logement parmi nos annonces vérifiées. Location journalière, mensuelle ou longue durée.',
+  },
+}
 import { formatPrice, formatPriceType, formatPropertyType } from '@/lib/utils'
 import SearchFilters from '@/components/SearchFilters'
 

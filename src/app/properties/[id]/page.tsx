@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic'
 
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import prisma from '@/lib/prisma'
@@ -16,6 +17,30 @@ async function getProperty(id: string) {
     },
   })
   return property
+}
+
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  try {
+    const property = await getProperty(params.id)
+    if (!property) return { title: 'Propriété introuvable' }
+
+    const priceLabel = `${new Intl.NumberFormat('fr-FR').format(property.price)} FCFA`
+    const typeLabel = formatPropertyType(property.propertyType)
+
+    return {
+      title: `${property.title} - ${typeLabel} à ${property.city}`,
+      description: `${typeLabel} à louer à ${property.city}, ${property.address}. ${priceLabel}${formatPriceType(property.priceType)}. ${property.bedrooms} chambres, ${property.bathrooms} sdb. ${property.description.substring(0, 150)}...`,
+      openGraph: {
+        title: `${property.title} - ${priceLabel}${formatPriceType(property.priceType)}`,
+        description: `${typeLabel} à ${property.city}. ${property.bedrooms} chambres, ${property.bathrooms} sdb.`,
+        images: property.images.length > 0
+          ? [{ url: property.images[0].url, width: 800, height: 600, alt: property.title }]
+          : [],
+      },
+    }
+  } catch {
+    return { title: 'Propriété | BenImmo' }
+  }
 }
 
 export default async function PropertyDetailPage({ params }: { params: { id: string } }) {
