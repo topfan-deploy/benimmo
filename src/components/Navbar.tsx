@@ -9,10 +9,14 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
+  const userRole = (session?.user as any)?.role;
+
   const navLinks = [
     { href: '/', label: 'Accueil' },
     { href: '/properties', label: 'Propriétés' },
-    { href: '/properties/new', label: 'Publier une annonce' },
+    ...(userRole === 'OWNER' || userRole === 'ADMIN'
+      ? [{ href: '/properties/new', label: 'Publier une annonce' }]
+      : []),
   ];
 
   return (

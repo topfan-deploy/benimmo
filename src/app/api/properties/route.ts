@@ -98,6 +98,15 @@ export async function POST(request: Request) {
     }
 
     const userId = (session.user as any).id
+    const userRole = (session.user as any).role
+
+    if (userRole !== 'OWNER' && userRole !== 'ADMIN') {
+      return NextResponse.json(
+        { error: 'Seuls les propriétaires peuvent publier une annonce' },
+        { status: 403 }
+      )
+    }
+
     const body = await request.json()
 
     const {
