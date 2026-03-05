@@ -19,7 +19,7 @@ async function requireAdmin() {
   return { session }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const auth = await requireAdmin()
     if ('error' in auth) {
@@ -27,6 +27,21 @@ export async function GET() {
         { error: auth.error },
         { status: auth.status }
       )
+    }
+
+    // Support ?type=documents pour la page de vérifications
+    const { searchParams } = new URL(request.url)
+    const type = searchParams.get('type')
+
+    if (type === 'documents') {
+      const documents = await prisma.document.findMany({
+        where: { status: 'PENDING' },
+        include: {
+          user: { select: { id: true, name: true, email: true, phone: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      })
+      return NextResponse.json({ documents })
     }
 
     const [

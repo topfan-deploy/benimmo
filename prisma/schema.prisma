@@ -90,6 +90,11 @@ enum WithdrawalStatus {
   FAILED
 }
 
+enum HandoverStatus {
+  PENDING
+  CONFIRMED
+}
+
 model User {
   id               String    @id @default(cuid())
   email            String    @unique
@@ -116,6 +121,7 @@ model User {
   reviewedDocuments Document[]     @relation("ReviewedDocuments")
   favorites        Favorite[]
   reviews          Review[]
+  confirmedHandovers KeyHandover[] @relation("ConfirmedHandovers")
 }
 
 model Property {
@@ -220,16 +226,36 @@ model Booking {
   clientId    String
   client      User          @relation("ClientBookings", fields: [clientId], references: [id])
   payment     Payment?
+  keyHandover KeyHandover?
+}
+
+model KeyHandover {
+  id               String         @id @default(cuid())
+  confirmationCode String         @unique
+  status           HandoverStatus @default(PENDING)
+  confirmedAt      DateTime?
+  createdAt        DateTime       @default(now())
+
+  bookingId        String         @unique
+  booking          Booking        @relation(fields: [bookingId], references: [id])
+  confirmedById    String?
+  confirmedBy      User?          @relation("ConfirmedHandovers", fields: [confirmedById], references: [id])
 }
 
 model Document {
-  id         String         @id @default(cuid())
-  type       DocumentType
-  url        String
-  status     DocumentStatus @default(PENDING)
-  reviewNote String?
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
+  id                      String         @id @default(cuid())
+  type                    DocumentType
+  url                     String
+  status                  DocumentStatus @default(PENDING)
+  reviewNote              String?
+  smileJobId              String?
+  smileResult             Json?
+  smileVerificationStatus String?
+  idType                  String?
+  idNumber                String?
+  autoVerifiedAt          DateTime?
+  createdAt               DateTime       @default(now())
+  updatedAt               DateTime       @updatedAt
 
   userId     String
   user       User           @relation(fields: [userId], references: [id])

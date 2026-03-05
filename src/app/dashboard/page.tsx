@@ -10,6 +10,9 @@ export default function DashboardPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [stats, setStats] = useState<any>(null)
+  const [handoverCode, setHandoverCode] = useState('')
+  const [handoverLoading, setHandoverLoading] = useState(false)
+  const [handoverMessage, setHandoverMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -43,6 +46,30 @@ export default function DashboardPage() {
         </div>
       </div>
     )
+  }
+
+  const handleHandoverSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (handoverCode.length !== 6) return
+    setHandoverLoading(true)
+    setHandoverMessage(null)
+    try {
+      const res = await fetch('/api/handover', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: handoverCode }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setHandoverMessage({ type: 'success', text: data.message || 'Remise de clés confirmée !' })
+        setHandoverCode('')
+      } else {
+        setHandoverMessage({ type: 'error', text: data.error || 'Erreur lors de la confirmation' })
+      }
+    } catch {
+      setHandoverMessage({ type: 'error', text: 'Erreur de connexion au serveur' })
+    }
+    setHandoverLoading(false)
   }
 
   if (!session) return null
@@ -146,7 +173,7 @@ export default function DashboardPage() {
 
       {/* Owner Quick Actions */}
       {(user.role === 'OWNER' || user.role === 'ADMIN') && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <Link
             href="/dashboard/wallet"
             className="bg-gradient-to-r from-emerald-600 to-emerald-800 text-white p-4 rounded-xl hover:from-emerald-700 hover:to-emerald-900 transition text-center font-medium"
@@ -160,11 +187,58 @@ export default function DashboardPage() {
             Mon Abonnement
           </Link>
           <Link
+            href="/dashboard/documents"
+            className="bg-white border p-4 rounded-xl hover:bg-gray-50 transition text-center font-medium"
+          >
+            Mes documents
+          </Link>
+          <Link
             href="/properties"
             className="bg-white border p-4 rounded-xl hover:bg-gray-50 transition text-center font-medium"
           >
             Parcourir les annonces
           </Link>
+        </div>
+      )}
+
+      {/* Formulaire confirmation remise de clés (propriétaires) */}
+      {(user.role === 'OWNER' || user.role === 'ADMIN') && (
+        <div className="bg-white border rounded-xl p-6 mb-8">
+          <h2 className="text-lg font-semibold mb-4">Confirmer une remise de clés</h2>
+          <form onSubmit={handleHandoverSubmit} className="flex items-end gap-4">
+            <div className="flex-1 max-w-xs">
+              <label htmlFor="handoverCode" className="block text-sm font-medium text-gray-700 mb-1">
+                Code de confirmation (6 chiffres)
+              </label>
+              <input
+                id="handoverCode"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                value={handoverCode}
+                onChange={(e) => setHandoverCode(e.target.value.replace(/\D/g, ''))}
+                placeholder="000000"
+                className="w-full px-4 py-2 border rounded-lg font-mono text-xl tracking-widest text-center focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={handoverCode.length !== 6 || handoverLoading}
+              className="bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {handoverLoading ? 'Vérification...' : 'Confirmer'}
+            </button>
+          </form>
+          {handoverMessage && (
+            <div className={`mt-3 text-sm px-4 py-2 rounded-lg ${
+              handoverMessage.type === 'success'
+                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                : 'bg-red-50 text-red-700 border border-red-200'
+            }`}>
+              {handoverMessage.text}
+            </div>
+          )}
         </div>
       )}
 

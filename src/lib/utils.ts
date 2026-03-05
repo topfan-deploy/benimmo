@@ -1,3 +1,9 @@
+import { randomInt } from 'crypto'
+
+export function generateConfirmationCode(): string {
+  return String(randomInt(100000, 999999))
+}
+
 export function formatPrice(price: number): string {
   return new Intl.NumberFormat('fr-FR').format(price) + ' FCFA'
 }
