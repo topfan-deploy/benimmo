@@ -5,6 +5,30 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import { submitIdVerification, isSmileConfigured } from '@/lib/smile-identity'
+import { checkRateLimit, getClientIp, RATE_LIMITS } from '@/lib/rate-limit'
+
+// Valider et nettoyer une URL de document
+function validateDocumentUrl(url: string): boolean {
+  // Seules les URLs locales (/uploads/...) sont acceptées
+  // Cela empêche les URLs javascript:, data:, et les URLs vers des serveurs externes
+  if (url.startsWith('/uploads/')) return true
+  try {
+    const parsed = new URL(url)
+    return parsed.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+// Nettoyer les entrées texte (anti XSS)
+function sanitizeInput(input: string): string {
+  return input
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+    .trim()
+}
 
 export async function GET() {
   try {
@@ -35,12 +59,30 @@ export async function POST(request: Request) {
     }
 
     const userId = (session.user as any).id
+
+    // Rate limiting : 20 uploads par heure
+    const rateCheck = checkRateLimit(`documents:${userId}`, RATE_LIMITS.UPLOAD)
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { error: 'Trop de soumissions. Réessayez plus tard.' },
+        { status: 429 }
+      )
+    }
+
     const body = await request.json()
     const { type, url, idType, idNumber, firstName, lastName } = body
 
     if (!type || !url) {
       return NextResponse.json(
         { error: 'Le type et l\'URL du document sont requis' },
+        { status: 400 }
+      )
+    }
+
+    // Valider l'URL du document (anti XSS / SSRF)
+    if (typeof url !== 'string' || !validateDocumentUrl(url)) {
+      return NextResponse.json(
+        { error: 'URL du document invalide' },
         { status: 400 }
       )
     }
@@ -58,13 +100,28 @@ export async function POST(request: Request) {
         )
       }
 
+      // Valider le type de pièce (liste blanche)
+      const validIdTypes = ['DRIVERS_LICENSE', 'NATIONAL_ID', 'PASSPORT', 'RESIDENT_CARD', 'VOTER_ID', 'TRAVEL_DOC']
+      if (!validIdTypes.includes(idType)) {
+        return NextResponse.json({ error: 'Type de pièce d\'identité invalide' }, { status: 400 })
+      }
+
+      // Limiter la longueur et nettoyer les inputs
+      if (idNumber.length > 50 || firstName.length > 100 || lastName.length > 100) {
+        return NextResponse.json({ error: 'Données trop longues' }, { status: 400 })
+      }
+
+      const cleanIdNumber = sanitizeInput(idNumber)
+      const cleanFirstName = sanitizeInput(firstName)
+      const cleanLastName = sanitizeInput(lastName)
+
       if (isSmileConfigured()) {
         try {
           const result = await submitIdVerification({
             idType,
-            idNumber,
-            firstName,
-            lastName,
+            idNumber: cleanIdNumber,
+            firstName: cleanFirstName,
+            lastName: cleanLastName,
             country: 'BJ',
           })
 
@@ -76,7 +133,7 @@ export async function POST(request: Request) {
               url,
               userId,
               idType,
-              idNumber,
+              idNumber: cleanIdNumber,
               smileJobId: result.jobId,
               smileResult: result.fullResult,
               smileVerificationStatus: verified ? 'Passed' : 'Failed',
@@ -102,7 +159,7 @@ export async function POST(request: Request) {
               url,
               userId,
               idType,
-              idNumber,
+              idNumber: cleanIdNumber,
               smileVerificationStatus: 'Error',
               status: 'PENDING',
             },
@@ -122,7 +179,7 @@ export async function POST(request: Request) {
             url,
             userId,
             idType,
-            idNumber,
+            idNumber: cleanIdNumber,
             status: 'PENDING',
           },
         })

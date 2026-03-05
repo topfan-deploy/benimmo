@@ -1,13 +1,58 @@
 export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
+import { createHmac } from 'crypto'
 import prisma from '@/lib/prisma'
 import { getTransaction } from '@/lib/fedapay'
 import { generateConfirmationCode } from '@/lib/utils'
+import { checkRateLimit, getClientIp, RATE_LIMITS } from '@/lib/rate-limit'
+
+const FEDAPAY_WEBHOOK_SECRET = process.env.FEDAPAY_WEBHOOK_SECRET || ''
+
+function verifyWebhookSignature(payload: string, signature: string | null): boolean {
+  if (!FEDAPAY_WEBHOOK_SECRET) {
+    // Si pas de secret configuré, on s'appuie uniquement sur la vérification getTransaction
+    console.warn('FEDAPAY_WEBHOOK_SECRET non configuré — signature non vérifiée')
+    return true
+  }
+  if (!signature) return false
+  const expected = createHmac('sha256', FEDAPAY_WEBHOOK_SECRET)
+    .update(payload)
+    .digest('hex')
+  // Comparaison à temps constant pour éviter les timing attacks
+  if (expected.length !== signature.length) return false
+  let mismatch = 0
+  for (let i = 0; i < expected.length; i++) {
+    mismatch |= expected.charCodeAt(i) ^ signature.charCodeAt(i)
+  }
+  return mismatch === 0
+}
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json()
+    // Rate limiting sur les callbacks
+    const ip = getClientIp(request)
+    const rateCheck = checkRateLimit(`callback:${ip}`, RATE_LIMITS.PAYMENT)
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { error: 'Trop de requêtes, réessayez plus tard' },
+        { status: 429 }
+      )
+    }
+
+    const rawBody = await request.text()
+
+    // Vérifier la signature webhook FedaPay
+    const signature = request.headers.get('x-fedapay-signature')
+    if (!verifyWebhookSignature(rawBody, signature)) {
+      console.error('Callback: signature webhook invalide')
+      return NextResponse.json(
+        { error: 'Signature invalide' },
+        { status: 403 }
+      )
+    }
+
+    const body = JSON.parse(rawBody)
 
     // FedaPay envoie l'ID de la transaction dans le webhook
     const { id: fedapayTransactionId } = body

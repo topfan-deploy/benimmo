@@ -50,7 +50,7 @@ export default function DashboardPage() {
 
   const handleHandoverSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (handoverCode.length !== 6) return
+    if (handoverCode.length !== 12) return
     setHandoverLoading(true)
     setHandoverMessage(null)
     try {
@@ -208,23 +208,21 @@ export default function DashboardPage() {
           <form onSubmit={handleHandoverSubmit} className="flex items-end gap-4">
             <div className="flex-1 max-w-xs">
               <label htmlFor="handoverCode" className="block text-sm font-medium text-gray-700 mb-1">
-                Code de confirmation (6 chiffres)
+                Code de confirmation (12 caractères)
               </label>
               <input
                 id="handoverCode"
                 type="text"
-                inputMode="numeric"
-                pattern="[0-9]{6}"
-                maxLength={6}
+                maxLength={12}
                 value={handoverCode}
-                onChange={(e) => setHandoverCode(e.target.value.replace(/\D/g, ''))}
-                placeholder="000000"
+                onChange={(e) => setHandoverCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                placeholder="XXXXXXXXXXXX"
                 className="w-full px-4 py-2 border rounded-lg font-mono text-xl tracking-widest text-center focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
               />
             </div>
             <button
               type="submit"
-              disabled={handoverCode.length !== 6 || handoverLoading}
+              disabled={handoverCode.length !== 12 || handoverLoading}
               className="bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {handoverLoading ? 'Vérification...' : 'Confirmer'}

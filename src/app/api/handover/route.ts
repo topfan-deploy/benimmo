@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import prisma from '@/lib/prisma'
+import { checkRateLimit, getClientIp, RATE_LIMITS } from '@/lib/rate-limit'
 
 export async function GET() {
   try {
@@ -74,18 +75,31 @@ export async function POST(request: Request) {
       )
     }
 
+    // Rate limiting : 5 tentatives par 30 minutes par IP
+    const ip = getClientIp(request)
+    const rateCheck = checkRateLimit(`handover:${ip}`, RATE_LIMITS.HANDOVER)
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { error: 'Trop de tentatives. Réessayez dans quelques minutes.' },
+        { status: 429 }
+      )
+    }
+
     const { code } = await request.json()
 
-    if (!code || String(code).length !== 6) {
+    if (!code || typeof code !== 'string' || code.length !== 12) {
       return NextResponse.json(
-        { error: 'Code de confirmation invalide (6 chiffres requis)' },
+        { error: 'Code de confirmation invalide (12 caractères requis)' },
         { status: 400 }
       )
     }
 
+    // Normaliser le code en majuscules
+    const normalizedCode = code.toUpperCase().trim()
+
     // Trouver le handover par code
     const handover = await prisma.keyHandover.findUnique({
-      where: { confirmationCode: String(code) },
+      where: { confirmationCode: normalizedCode },
       include: {
         booking: {
           include: {

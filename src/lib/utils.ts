@@ -1,7 +1,15 @@
-import { randomInt } from 'crypto'
+import { randomBytes } from 'crypto'
 
 export function generateConfirmationCode(): string {
-  return String(randomInt(100000, 999999))
+  // Code alphanumérique de 12 caractères (majuscules + chiffres)
+  // Espace de recherche : 36^12 = ~4.7 quadrillions de combinaisons (anti brute-force)
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // Sans I/O/0/1 pour éviter les confusions
+  const bytes = randomBytes(12)
+  let code = ''
+  for (let i = 0; i < 12; i++) {
+    code += chars[bytes[i] % chars.length]
+  }
+  return code
 }
 
 export function formatPrice(price: number): string {
