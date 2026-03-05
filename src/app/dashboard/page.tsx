@@ -109,12 +109,21 @@ export default function DashboardPage() {
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <Link
-          href="/properties/new"
-          className="bg-emerald-600 text-white p-4 rounded-xl hover:bg-emerald-700 transition text-center font-medium"
-        >
-          Publier une annonce
-        </Link>
+        {user.role === 'OWNER' || user.role === 'ADMIN' ? (
+          <Link
+            href="/properties/new"
+            className="bg-emerald-600 text-white p-4 rounded-xl hover:bg-emerald-700 transition text-center font-medium"
+          >
+            Publier une annonce
+          </Link>
+        ) : (
+          <Link
+            href="/properties"
+            className="bg-emerald-600 text-white p-4 rounded-xl hover:bg-emerald-700 transition text-center font-medium"
+          >
+            Parcourir les annonces
+          </Link>
+        )}
         <Link
           href="/dashboard/properties"
           className="bg-white border p-4 rounded-xl hover:bg-gray-50 transition text-center font-medium"
@@ -128,12 +137,36 @@ export default function DashboardPage() {
           Mes réservations
         </Link>
         <Link
-          href="/properties"
+          href="/dashboard/messages"
           className="bg-white border p-4 rounded-xl hover:bg-gray-50 transition text-center font-medium"
         >
-          Parcourir les annonces
+          Messagerie
         </Link>
       </div>
+
+      {/* Owner Quick Actions */}
+      {(user.role === 'OWNER' || user.role === 'ADMIN') && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <Link
+            href="/dashboard/wallet"
+            className="bg-gradient-to-r from-emerald-600 to-emerald-800 text-white p-4 rounded-xl hover:from-emerald-700 hover:to-emerald-900 transition text-center font-medium"
+          >
+            Mon Portefeuille
+          </Link>
+          <Link
+            href="/dashboard/subscription"
+            className="bg-white border p-4 rounded-xl hover:bg-gray-50 transition text-center font-medium"
+          >
+            Mon Abonnement
+          </Link>
+          <Link
+            href="/properties"
+            className="bg-white border p-4 rounded-xl hover:bg-gray-50 transition text-center font-medium"
+          >
+            Parcourir les annonces
+          </Link>
+        </div>
+      )}
 
       {/* Recent Properties */}
       {stats?.properties?.length > 0 && (

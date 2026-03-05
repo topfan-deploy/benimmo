@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import prisma from '@/lib/prisma'
 import { formatPrice, formatPriceType, formatPropertyType, formatDate } from '@/lib/utils'
-import AppointmentCalendar from '@/components/AppointmentCalendar'
+import PropertySidebar from '@/components/PropertySidebar'
 
 async function getProperty(id: string) {
   const property = await prisma.property.findUnique({
@@ -185,47 +185,13 @@ export default async function PropertyDetailPage({ params }: { params: { id: str
         </div>
 
         {/* Sidebar */}
-        <div className="lg:col-span-1">
-          {/* Owner Info */}
-          <div className="bg-white border rounded-xl p-6 mb-6 sticky top-4">
-            <h3 className="font-semibold text-lg mb-4">Propriétaire</h3>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center">
-                <span className="text-emerald-600 font-bold text-lg">
-                  {property.owner.name.charAt(0).toUpperCase()}
-                </span>
-              </div>
-              <div>
-                <p className="font-medium">{property.owner.name}</p>
-                {property.owner.isVerified && (
-                  <p className="text-xs text-emerald-600">Identité vérifiée</p>
-                )}
-              </div>
-            </div>
-
-            {property.owner.phone && (
-              <a
-                href={`tel:${property.owner.phone}`}
-                className="block w-full bg-emerald-600 text-white text-center py-3 rounded-lg font-medium hover:bg-emerald-700 transition mb-3"
-              >
-                Appeler le propriétaire
-              </a>
-            )}
-
-            <Link
-              href={`/appointments/${property.id}`}
-              className="block w-full border-2 border-emerald-600 text-emerald-600 text-center py-3 rounded-lg font-medium hover:bg-emerald-50 transition"
-            >
-              Prendre rendez-vous
-            </Link>
-          </div>
-
-          {/* Quick Appointment */}
-          <div className="bg-white border rounded-xl p-6">
-            <h3 className="font-semibold text-lg mb-4">Planifier une visite</h3>
-            <AppointmentCalendar propertyId={property.id} />
-          </div>
-        </div>
+        <PropertySidebar
+          propertyId={property.id}
+          ownerId={property.ownerId}
+          ownerName={property.owner.name}
+          ownerPhone={property.owner.phone}
+          ownerIsVerified={property.owner.isVerified}
+        />
       </div>
     </div>
   )

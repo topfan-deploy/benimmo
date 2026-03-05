@@ -83,6 +83,13 @@ enum SubscriptionStatus {
   CANCELLED
 }
 
+enum WithdrawalStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
 model User {
   id               String    @id @default(cuid())
   email            String    @unique
@@ -97,6 +104,10 @@ model User {
 
   properties       Property[]
   subscriptions    Subscription[]
+  wallet           Wallet?
+  withdrawals      Withdrawal[]
+  sentMessages     Message[]       @relation("SentMessages")
+  receivedMessages Message[]       @relation("ReceivedMessages")
   bookings         Booking[]       @relation("ClientBookings")
   appointments     Appointment[]   @relation("ClientAppointments")
   agentAppointments Appointment[]  @relation("AgentAppointments")
@@ -133,6 +144,7 @@ model Property {
   bookings          Booking[]
   favorites         Favorite[]
   reviews           Review[]
+  messages          Message[]
 }
 
 model PropertyImage {
@@ -265,4 +277,58 @@ model Subscription {
 
   userId               String
   user                 User               @relation(fields: [userId], references: [id])
+}
+
+model Wallet {
+  id           String              @id @default(cuid())
+  balance      Float               @default(0)
+  currency     String              @default("XOF")
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  userId       String              @unique
+  user         User                @relation(fields: [userId], references: [id])
+  transactions WalletTransaction[]
+}
+
+model WalletTransaction {
+  id          String   @id @default(cuid())
+  amount      Float
+  type        String   // CREDIT (paiement reçu) ou DEBIT (retrait)
+  description String
+  reference   String?  // lien vers paymentId ou withdrawalId
+  createdAt   DateTime @default(now())
+
+  walletId    String
+  wallet      Wallet   @relation(fields: [walletId], references: [id])
+}
+
+model Withdrawal {
+  id           String           @id @default(cuid())
+  amount       Float
+  currency     String           @default("XOF")
+  method       PaymentMethod    // MOMO ou MOOV
+  phoneNumber  String
+  status       WithdrawalStatus @default(PENDING)
+  processedAt  DateTime?
+  adminNote    String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  userId       String
+  user         User             @relation(fields: [userId], references: [id])
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  content    String
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  senderId   String
+  sender     User     @relation("SentMessages", fields: [senderId], references: [id])
+  receiverId String
+  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  propertyId String?
+  property   Property? @relation(fields: [propertyId], references: [id])
 }

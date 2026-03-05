@@ -126,6 +126,25 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url)
+    const userId = (session.user as any).id
+
+    // Vérifier si le client a payé pour une propriété
+    const propertyId = searchParams.get('propertyId')
+    const check = searchParams.get('check')
+
+    if (propertyId && check === 'true') {
+      const paidBooking = await prisma.payment.findFirst({
+        where: {
+          status: 'SUCCESS',
+          booking: {
+            propertyId,
+            clientId: userId,
+          },
+        },
+      })
+      return NextResponse.json({ hasPaid: !!paidBooking })
+    }
+
     const paymentId = searchParams.get('paymentId')
     const bookingId = searchParams.get('bookingId')
 
